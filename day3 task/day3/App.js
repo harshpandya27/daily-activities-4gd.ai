@@ -1,13 +1,6 @@
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  FlatList,
-  Alert,
-} from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, Alert } from "react-native";
+import axios from "axios";
 import Icon from "react-native-vector-icons/Ionicons";
 
 // Validation functions
@@ -39,12 +32,9 @@ const App = () => {
   const [emailError, setEmailError] = useState("");
   const [isResetPassword, setIsResetPassword] = useState(false);
 
-  const handleLogin = () => {
+  // Handle login
+  const handleLogin = async () => {
     if (screen === "Login") {
-      if (!username.trim()) {
-        Alert.alert("Error", "Please enter a username");
-        return;
-      }
       if (!email.trim()) {
         Alert.alert("Error", "Please enter an email");
         return;
@@ -54,8 +44,27 @@ const App = () => {
         return;
       }
       setEmailError("");
-      setScreen("Password");
+
+      // Send request to backend to check email
+      try {
+        const response = await axios.post("http://10.1.106.97:5000/login/email", {
+          email,
+        });
+
+        if (response.status === 200) {
+          setScreen("Password"); // Proceed to password screen
+        } else {
+          Alert.alert("Error", response.data.message);
+        }
+      } catch (error) {
+        Alert.alert("Error", error.response?.data?.message || "Network error");
+      }
     } else if (screen === "Password") {
+      if (!password.trim()) {
+        Alert.alert("Error", "Please enter a password");
+        return;
+      }
+
       const passwordStrength = getPasswordStrength(password);
       if (passwordStrength.text === "Weak") {
         Alert.alert(
@@ -64,10 +73,26 @@ const App = () => {
         );
         return;
       }
-      setScreen("Dashboard");
+
+      // Send request to backend to check credentials
+      try {
+        const response = await axios.post("http://10.1.106.97:5000/login/password", {
+          email,
+          password,
+        });
+
+        if (response.status === 200) {
+          setScreen("Dashboard"); // Proceed to dashboard if credentials are valid
+        } else {
+          Alert.alert("Error", response.data.message);
+        }
+      } catch (error) {
+        Alert.alert("Error", error.response?.data?.message || "Network error");
+      }
     }
   };
 
+  // Handle forgot password
   const handleForgotPassword = () => {
     if (!email.trim() || !isValidEmail(email)) {
       Alert.alert("Error", "Please enter a valid email address first");
@@ -110,9 +135,7 @@ const App = () => {
               setEmailError("");
             }}
           />
-          {emailError ? (
-            <Text style={styles.errorText}>{emailError}</Text>
-          ) : null}
+          {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
           <TouchableOpacity style={styles.button} onPress={handleLogin}>
             <Text style={styles.buttonText}>Continue</Text>
           </TouchableOpacity>
@@ -249,113 +272,93 @@ const App = () => {
   );
 };
 
-// Enhanced Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f0f8f4", // Light greenish background for the entire app
+    backgroundColor: "#f0f0f0",
   },
   centeredView: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
-    backgroundColor: "#fff", // Pure white for login/password screens
   },
   title: {
     fontSize: 24,
-    fontWeight: "700",
-    marginBottom: 10,
-    color: "#2e7d32", // Consistent green theme for titles
+    fontWeight: "bold",
+    marginBottom: 20,
   },
   subtitle: {
     fontSize: 16,
-    color: "#4CAF50",
-    marginBottom: 20,
-    textAlign: "center",
+    color: "#888",
+    marginBottom: 30,
   },
   input: {
     width: "100%",
-    padding: 12,
-    borderColor: "#a5d6a7",
-    borderWidth: 1,
-    borderRadius: 8,
-    backgroundColor: "#e8f5e9",
-    color: "#2e7d32",
+    height: 50,
+    backgroundColor: "#fff",
+    borderRadius: 5,
+    paddingHorizontal: 10,
     marginBottom: 20,
   },
   inputError: {
-    borderColor: "#ff4444",
+    borderColor: "red",
     borderWidth: 1,
   },
+  button: {
+    backgroundColor: "#4CAF50",
+    paddingVertical: 10,
+    paddingHorizontal: 40,
+    borderRadius: 5,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 18,
+  },
   errorText: {
-    color: "#ff4444",
-    fontSize: 14,
+    color: "red",
     marginBottom: 10,
-    alignSelf: "flex-start",
   },
   passwordStrength: {
     fontSize: 14,
     marginBottom: 10,
-    alignSelf: "flex-start",
-  },
-  button: {
-    backgroundColor: "#4CAF50",
-    padding: 15,
-    borderRadius: 8,
-    alignItems: "center",
-    width: "100%",
-    marginBottom: 10,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
   },
   forgotPassword: {
-    marginTop: 15,
+    marginTop: 20,
   },
   forgotPasswordText: {
-    color: "#4CAF50",
-    fontSize: 14,
-    textDecorationLine: "underline",
+    color: "#007BFF",
   },
   dashboard: {
     flex: 1,
-    padding: 20,
-    backgroundColor: "#f0f8f4",
-    justifyContent: "space-between", // This makes sure content is spread out and the tab bar stays at the bottom
+    justifyContent: "space-between",
   },
   content: {
     flex: 1,
+    padding: 20,
   },
   feedMessage: {
     fontSize: 16,
-    color: "#333",
     marginBottom: 10,
-    padding: 10,
-    borderRadius: 6,
-    backgroundColor: "#e8f5e9",
   },
   messagingContainer: {
-    marginTop: 20,
-    padding: 10,
-  },
-  emptyMessage: {
-    color: "#aaa",
-    fontSize: 16,
-    textAlign: "center",
-    marginTop: 20,
-  },
-  profileContainer: {
-    marginTop: 20,
+    justifyContent: "center",
     alignItems: "center",
   },
+  emptyMessage: {
+    fontSize: 18,
+    textAlign: "center",
+    color: "#aaa",
+  },
+  profileContainer: {
+    alignItems: "center",
+    marginTop: 40,
+  },
   avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: "#4CAF50",
-    borderRadius: 50,
-    width: 100,
-    height: 100,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
@@ -366,36 +369,35 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   profileText: {
-    fontSize: 16,
-    color: "#333",
+    fontSize: 18,
     marginBottom: 10,
   },
   motto: {
     fontSize: 18,
-    fontStyle: "italic",
     color: "#4CAF50",
     marginTop: 20,
   },
   tabBar: {
     flexDirection: "row",
     justifyContent: "space-around",
-    borderTopWidth: 1,
-    borderColor: "#ccc",
-    paddingVertical: 10,
     backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#ddd",
+    paddingVertical: 10,
   },
   tab: {
     alignItems: "center",
+    flex: 1,
   },
   activeTab: {
     alignItems: "center",
-    borderBottomWidth: 2,
-    borderColor: "#4CAF50",
+    flex: 1,
+    borderBottomWidth: 3,
+    borderBottomColor: "#4CAF50",
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#aaa",
-    marginTop: 5,
   },
 });
 
