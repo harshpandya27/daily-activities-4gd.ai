@@ -9,7 +9,7 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
-
+ 
 // MongoDB setup (replace with your actual MongoDB URI)
 mongoose.connect(
   "mongodb+srv://harshpandya5099:Mahakal123@day3task.pvns6.mongodb.net/?retryWrites=true&w=majority&appName=day3task",
