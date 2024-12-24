@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, Alert } from "react-native";
 import axios from "axios";
 import Icon from "react-native-vector-icons/Ionicons";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Validation functions
 const isValidEmail = (email) => {
@@ -31,6 +32,32 @@ const App = () => {
   const [activeTab, setActiveTab] = useState("Feed");
   const [emailError, setEmailError] = useState("");
   const [isResetPassword, setIsResetPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [token, setToken] = useState(null);
+
+  // Check token on app start
+  useEffect(() => {
+    checkToken();
+  }, []);
+
+  const checkToken = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (token) {
+        const response = await axios.get('http://192.168.43.124:5000/user/profile', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.status === 200) {
+          setToken(token);
+          setScreen('Dashboard');
+        }
+      }
+    } catch (error) {
+      await AsyncStorage.removeItem('userToken');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Handle login
   const handleLogin = async () => {
@@ -45,14 +72,13 @@ const App = () => {
       }
       setEmailError("");
 
-      // Send request to backend to check email
       try {
-        const response = await axios.post("http://10.1.106.97:5000/login/email", {
+        const response = await axios.post("http://192.168.43.124:5000/login/email", {
           email,
         });
 
         if (response.status === 200) {
-          setScreen("Password"); // Proceed to password screen
+          setScreen("Password");
         } else {
           Alert.alert("Error", response.data.message);
         }
@@ -74,21 +100,43 @@ const App = () => {
         return;
       }
 
-      // Send request to backend to check credentials
       try {
-        const response = await axios.post("http://10.1.106.97:5000/login/password", {
+        const response = await axios.post("http://192.168.43.124:5000/login/password", {
           email,
           password,
         });
 
         if (response.status === 200) {
-          setScreen("Dashboard"); // Proceed to dashboard if credentials are valid
+          const { token } = response.data;
+          await AsyncStorage.setItem('userToken', token);
+          setToken(token);
+          setScreen("Dashboard");
+          
+          // Set up token expiration handler
+          setTimeout(() => {
+            handleLogout();
+          }, response.data.expiresIn * 1000);
         } else {
           Alert.alert("Error", response.data.message);
         }
       } catch (error) {
         Alert.alert("Error", error.response?.data?.message || "Network error");
       }
+    }
+  };
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('userToken');
+      setToken(null);
+      setScreen('Login');
+      setUsername('');
+      setEmail('');
+      setPassword('');
+      Alert.alert('Logged Out', 'Your session has ended');
+    } catch (error) {
+      console.error('Error logging out:', error);
     }
   };
 
@@ -109,6 +157,14 @@ const App = () => {
       ]
     );
   };
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -178,10 +234,9 @@ const App = () => {
         </View>
       )}
 
-      {/* Dashboard - Only accessible after successful validation */}
+      {/* Dashboard */}
       {screen === "Dashboard" && (
         <View style={styles.dashboard}>
-          {/* Active Tab Content */}
           <View style={styles.content}>
             {activeTab === "Feed" && (
               <View>
@@ -226,11 +281,18 @@ const App = () => {
                   <Icon name="mail-outline" size={20} /> Email: {email}
                 </Text>
                 <Text style={styles.motto}>🌍 Let's Go Green Together!</Text>
+                <TouchableOpacity 
+                  style={styles.logoutButton} 
+                  onPress={handleLogout}
+                >
+                  <Text style={styles.logoutButtonText}>
+                    <Icon name="log-out-outline" size={20} /> Logout
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>
 
-          {/* Tab Bar - Positioned at the bottom */}
           <View style={styles.tabBar}>
             <TouchableOpacity
               style={activeTab === "Feed" ? styles.activeTab : styles.tab}
@@ -398,6 +460,18 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 12,
     color: "#aaa",
+  },
+  logoutButton: {
+    backgroundColor: '#ff4444',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    marginTop: 20,
+  },
+  logoutButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
