@@ -6,7 +6,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require('jsonwebtoken');
 
 const app = express();
-
+ 
 // JWT Configuration
 const JWT_SECRET = 'your-secret-key'; // In production, use environment variable
 const JWT_EXPIRES_IN = '1h'; // Token expires in 1 hour
