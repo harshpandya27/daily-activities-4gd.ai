@@ -211,21 +211,5 @@ CMD ["npm", "start"]
 
 1. **Add a MongoDB Service**: Integrate MongoDB as a container in `docker-compose.yml` for seamless database setup.
 2. **Use `.env` Files**: Manage environment variables securely with a `.env` file.
-3. **Optimize for Production**:
-   - Use multi-stage builds in Dockerfiles.
-   - Minify frontend code.
-   - Set up proper logging and monitoring.
 
----
-
-## Authors
-
-- **Your Name**  
-For any questions or issues, feel free to reach out at [your-email@example.com].
-
----
-
-## License
-
-This project is licensed under the MIT License. See the LICENSE file for details.
 
