@@ -7,7 +7,7 @@ RUN npm install -g expo-cli
 
 # Copy package files
 COPY package*.json ./
-COPY app.json ./
+COPY app.json ./ 
 COPY metro.config.js ./
 
 # Install dependencies
