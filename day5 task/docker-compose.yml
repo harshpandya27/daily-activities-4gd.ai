@@ -3,7 +3,7 @@ version: '3.8'
 services:
   frontend:
     build:
-      context: .
+      context: ./day5
       dockerfile: Dockerfile
     container_name: expo-frontend
     ports:
@@ -15,14 +15,14 @@ services:
       - EXPO_DEVTOOLS_LISTEN_ADDRESS=0.0.0.0
       - REACT_NATIVE_PACKAGER_HOSTNAME=localhost
     volumes:
-      - .:/app
+      - ./day5:/app
       - /app/node_modules
     depends_on:
       - backend
 
   backend:
     build:
-      context: ./server
+      context: ./day5/server
       dockerfile: Dockerfile
     container_name: node-backend
     ports:
@@ -33,5 +33,5 @@ services:
       - JWT_SECRET=your-secret-key
       - PORT=5000
     volumes:
-      - ./server:/app
+      - ./day5/server:/app
       - /app/node_modules
