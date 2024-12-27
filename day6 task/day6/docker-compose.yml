@@ -32,4 +32,4 @@ services:
 
 networks:
   github-agent-network:
-    driver: bridges
+    driver: bridge
