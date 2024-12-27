@@ -11,27 +11,19 @@ import {
 } from 'react-native';
 import axios from 'axios';
 
-const API_URL = 'http://192.168.43.124:5000';
+const API_URL = 'http://172.20.10.10:5000';
 
 export default function App() {
   const [owner, setOwner] = useState('');
   const [repo, setRepo] = useState('');
   const [days, setDays] = useState('7');
   const [loading, setLoading] = useState(false);
-  const [summary, setSummary] = useState('');
+  const [summaryData, setSummaryData] = useState(null);
   const [error, setError] = useState('');
 
   const validateInputs = useCallback(() => {
-    if (!owner.trim()) {
-      setError('Repository owner is required');
-      return false;
-    }
-    if (!repo.trim()) {
-      setError('Repository name is required');
-      return false;
-    }
-    if (isNaN(Number(days)) || Number(days) < 1) {
-      setError('Please enter a valid number of days');
+    if (!owner.trim() || !repo.trim() || isNaN(Number(days)) || Number(days) < 1) {
+      setError('Please fill all fields correctly');
       return false;
     }
     return true;
@@ -39,10 +31,9 @@ export default function App() {
 
   const getSummary = async () => {
     if (!validateInputs()) return;
-
     setLoading(true);
     setError('');
-    setSummary('');
+    setSummaryData(null);
 
     try {
       const response = await axios.post(`${API_URL}/summarize`, {
@@ -50,61 +41,62 @@ export default function App() {
         repo: repo.trim(),
         days: Number(days)
       });
-
-      setSummary(response.data.summary);
+      setSummaryData(response.data);
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 
-        'Error fetching summary. Please try again.';
-      setError(errorMessage);
-      Alert.alert('Error', errorMessage);
+      setError(error.response?.data?.message || 'Error fetching summary');
+      Alert.alert('Error', error.response?.data?.message || 'Error fetching summary');
     } finally {
       setLoading(false);
     }
   };
 
+  const renderCommitsByDate = () => {
+    if (!summaryData?.commits_by_date) return null;
+
+    return Object.entries(summaryData.commits_by_date).map(([date, commits]) => (
+      <View key={date} style={styles.dateGroup}>
+        <View style={styles.dateHeaderContainer}>
+          <Text style={styles.dateHeader}>{date}</Text>
+          <Text style={styles.commitCount}>{commits.length} commits</Text>
+        </View>
+        {commits.map((commit, index) => (
+          <View key={index} style={styles.commitItem}>
+            <Text style={styles.commitMessage} numberOfLines={2}>{commit.message}</Text>
+            <View style={styles.commitMetaContainer}>
+              <Text style={styles.authorText}>{commit.author}</Text>
+              <Text style={styles.filesChanged}>{commit.files_changed} files</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+    ));
+  };
+
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <View style={styles.container}>
-        <Text style={styles.title}>GitHub Commit Summarizer</Text>
-        
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Repository Owner</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <Text style={styles.title}>GitHub Commit Analyzer</Text>
+      
+      <View style={styles.card}>
+        <View style={styles.inputGroup}>
           <TextInput
             style={styles.input}
-            placeholder="e.g., facebook"
+            placeholder="Repository Owner"
             value={owner}
-            onChangeText={text => {
-              setError('');
-              setOwner(text);
-            }}
+            onChangeText={setOwner}
             autoCapitalize="none"
           />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Repository Name</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g., react"
+            placeholder="Repository Name"
             value={repo}
-            onChangeText={text => {
-              setError('');
-              setRepo(text);
-            }}
+            onChangeText={setRepo}
             autoCapitalize="none"
           />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Days to Analyze</Text>
           <TextInput
-            style={styles.input}
-            placeholder="7"
+            style={[styles.input, styles.daysInput]}
+            placeholder="Days to analyze"
             value={days}
-            onChangeText={text => {
-              setError('');
-              setDays(text);
-            }}
+            onChangeText={setDays}
             keyboardType="numeric"
           />
         </View>
@@ -112,94 +104,182 @@ export default function App() {
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <TouchableOpacity
-          style={styles.button}
+          style={[styles.button, loading && styles.buttonDisabled]}
           onPress={getSummary}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Get Summary</Text>
+            <Text style={styles.buttonText}>Analyze</Text>
           )}
         </TouchableOpacity>
-
-        {summary ? (
-          <View style={styles.summaryContainer}>
-            <Text style={styles.summaryTitle}>Commit Summary</Text>
-            <Text style={styles.summaryText}>{summary}</Text>
-          </View>
-        ) : null}
       </View>
+
+      {summaryData && (
+        <View style={styles.resultsCard}>
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{summaryData.summary_stats.total_commits}</Text>
+              <Text style={styles.statLabel}>Commits</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{summaryData.summary_stats.unique_authors}</Text>
+              <Text style={styles.statLabel}>Contributors</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>{days}</Text>
+              <Text style={styles.statLabel}>Days</Text>
+            </View>
+          </View>
+          {renderCommitsByDate()}
+        </View>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContainer: {
-    flexGrow: 1,
-  },
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f5f7fa',
+  },
+  contentContainer: {
+    padding: 16,
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 30,
+    fontWeight: '700',
+    color: '#1a1f36',
+    marginBottom: 24,
     textAlign: 'center',
-    color: '#333',
   },
-  inputContainer: {
-    marginBottom: 15,
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  label: {
-    fontSize: 16,
-    marginBottom: 5,
-    color: '#666',
+  inputGroup: {
+    marginBottom: 16,
   },
   input: {
-    width: '100%',
-    padding: 12,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
+    backgroundColor: '#f8fafc',
     borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
     fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  daysInput: {
+    width: '50%',
   },
   button: {
-    backgroundColor: '#007AFF',
-    padding: 15,
+    backgroundColor: '#0366d6',
     borderRadius: 8,
+    padding: 14,
     alignItems: 'center',
-    marginTop: 20,
+  },
+  buttonDisabled: {
+    backgroundColor: '#94a3b8',
   },
   buttonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   error: {
-    color: '#ff3b30',
-    marginBottom: 10,
+    color: '#ef4444',
+    marginBottom: 12,
+    fontSize: 14,
   },
-  summaryContainer: {
-    marginTop: 30,
-    padding: 15,
+  resultsCard: {
     backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  summaryTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 16,
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
   },
-  summaryText: {
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#0366d6',
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#64748b',
+    marginTop: 4,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: '#e2e8f0',
+  },
+  dateGroup: {
+    marginBottom: 24,
+  },
+  dateHeaderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  dateHeader: {
     fontSize: 16,
-    lineHeight: 24,
-    color: '#666',
+    fontWeight: '600',
+    color: '#1a1f36',
   },
+  commitCount: {
+    fontSize: 14,
+    color: '#64748b',
+  },
+  commitItem: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  commitMessage: {
+    fontSize: 14,
+    color: '#334155',
+    marginBottom: 8,
+  },
+  commitMetaContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  authorText: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  filesChanged: {
+    fontSize: 12,
+    color: '#64748b',
+    backgroundColor: '#e2e8f0',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  }
 });
